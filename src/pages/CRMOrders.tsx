@@ -103,7 +103,7 @@ const Av = ({ name }: { name: string }) => {
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }: { status: OrderStatus }) => {
-    const c = STATUS_CONFIG[status];
+    const c = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
     const Icon = c.icon;
     return (
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${c.bg} ${c.color} whitespace-nowrap`}>
@@ -114,7 +114,7 @@ const StatusBadge = ({ status }: { status: OrderStatus }) => {
 
 // ─── Priority Badge ───────────────────────────────────────────────────────────
 const PriBadge = ({ priority }: { priority: OrderPriority }) => {
-    const c = PRIORITY_CONFIG[priority];
+    const c = PRIORITY_CONFIG[priority] || PRIORITY_CONFIG.medium;
     return (
         <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${c.color}`}>
             <span className={`w-2 h-2 rounded-full ${c.dot}`} /> {c.label}
@@ -254,7 +254,7 @@ const OrderModal = ({ order, onClose, onSaved, currentUser = 'Admin User' }:
 // ─── Detail Drawer ────────────────────────────────────────────────────────────
 const OrderDrawer = ({ order, onClose, onEdit }: { order: OrderRecord; onClose(): void; onEdit(): void }) => {
     const statusSteps = (Object.keys(STATUS_CONFIG) as OrderStatus[]).filter(k => k !== 'cancelled');
-    const currentStep = STATUS_CONFIG[order.status].step;
+    const currentStep = (STATUS_CONFIG[order.status] || STATUS_CONFIG.pending).step;
 
     return (
         <div className="fixed inset-0 z-[1500]" onClick={onClose}>
@@ -436,7 +436,7 @@ const CRMOrders = () => {
 
     const filtered = useMemo(() => orders.filter(o => {
         const q = search.toLowerCase();
-        if (q && !o.customer_name.toLowerCase().includes(q) && !o.order_number?.toLowerCase().includes(q) && !o.system_type?.toLowerCase().includes(q)) return false;
+        if (q && !(String(o.customer_name || '').toLowerCase().includes(q)) && !(String(o.order_number || '').toLowerCase().includes(q)) && !(String(o.system_type || '').toLowerCase().includes(q))) return false;
         if (tab === 'my_orders' && o.assigned_to !== currentUser) return false;
         if (tab === 'open' && (o.status === 'installed' || o.status === 'cancelled')) return false;
         if (filterStatus !== 'all' && o.status !== filterStatus) return false;
