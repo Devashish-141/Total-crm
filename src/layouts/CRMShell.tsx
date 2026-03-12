@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { LogOut, User, Settings as SettingsIcon } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const CRMShell = () => {
