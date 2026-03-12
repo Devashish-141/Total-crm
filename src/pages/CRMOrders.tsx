@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type OrderStatus = 'pending' | 'confirmed' | 'in_production' | 'dispatched' | 'installed' | 'cancelled';
+type OrderStatus = 'Pending' | 'Confirmed' | 'In Production' | 'Dispatched' | 'Installed' | 'Cancelled';
 type OrderPriority = 'low' | 'medium' | 'high' | 'urgent';
 type TabId = 'all' | 'my_orders' | 'open';
 
@@ -37,12 +37,12 @@ interface OrderRecord {
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; icon: React.ElementType; step: number }> = {
-    pending: { label: 'Pending', color: 'text-slate-600', bg: 'bg-slate-100', icon: Clock, step: 0 },
-    confirmed: { label: 'Confirmed', color: 'text-blue-700', bg: 'bg-blue-100', icon: Check, step: 1 },
-    in_production: { label: 'In Production', color: 'text-violet-700', bg: 'bg-violet-100', icon: Wrench, step: 2 },
-    dispatched: { label: 'Dispatched', color: 'text-amber-700', bg: 'bg-amber-100', icon: Truck, step: 3 },
-    installed: { label: 'Installed', color: 'text-emerald-700', bg: 'bg-emerald-100', icon: PackageCheck, step: 4 },
-    cancelled: { label: 'Cancelled', color: 'text-red-700', bg: 'bg-red-100', icon: AlertTriangle, step: -1 },
+    Pending: { label: 'Pending', color: 'text-slate-600', bg: 'bg-slate-100', icon: Clock, step: 0 },
+    Confirmed: { label: 'Confirmed', color: 'text-blue-700', bg: 'bg-blue-100', icon: Check, step: 1 },
+    'In Production': { label: 'In Production', color: 'text-violet-700', bg: 'bg-violet-100', icon: Wrench, step: 2 },
+    Dispatched: { label: 'Dispatched', color: 'text-amber-700', bg: 'bg-amber-100', icon: Truck, step: 3 },
+    Installed: { label: 'Installed', color: 'text-emerald-700', bg: 'bg-emerald-100', icon: PackageCheck, step: 4 },
+    Cancelled: { label: 'Cancelled', color: 'text-red-700', bg: 'bg-red-100', icon: AlertTriangle, step: -1 },
 };
 
 const PRIORITY_CONFIG: Record<OrderPriority, { label: string; color: string; dot: string }> = {
@@ -103,7 +103,7 @@ const Av = ({ name }: { name: string }) => {
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }: { status: OrderStatus }) => {
-    const c = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+    const c = STATUS_CONFIG[status] || STATUS_CONFIG.Pending;
     const Icon = c.icon;
     return (
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${c.bg} ${c.color} whitespace-nowrap`}>
@@ -133,7 +133,7 @@ const OrderModal = ({ order, onClose, onSaved, currentUser = 'Admin User' }:
         system_type: order?.system_type ?? 'On-Grid 5kW',
         capacity_kw: order?.capacity_kw ?? 5,
         amount: order?.amount ?? 0,
-        status: order?.status ?? 'pending' as OrderStatus,
+        status: order?.status ?? 'Pending' as OrderStatus,
         priority: order?.priority ?? 'medium' as OrderPriority,
         assigned_to: order?.assigned_to ?? currentUser,
         address: order?.address ?? '',
@@ -148,19 +148,42 @@ const OrderModal = ({ order, onClose, onSaved, currentUser = 'Admin User' }:
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
-        const payload = { ...form, updated_at: nowIso };
+        const dbPayload = {
+            total_amount: form.amount,
+            status: form.status,
+            notes: form.notes,
+            assigned_to: form.assigned_to,
+            updated_at: nowIso,
+            items: [{
+                customer_name: form.customer_name,
+                customer_email: form.customer_email,
+                customer_phone: form.customer_phone,
+                system_type: form.system_type,
+                capacity_kw: form.capacity_kw,
+                priority: form.priority,
+                address: form.address,
+                pipeline: form.pipeline,
+                installation_date: form.installation_date
+            }]
+        };
+
         if (order) {
-            const { error } = await supabase.from('crm_orders').update(payload).eq('id', order.id);
+            const { error } = await supabase.from('crm_orders').update(dbPayload).eq('id', order.id);
             if (error) { toast.error('Failed to update order'); setSaving(false); return; }
             toast.success('Order updated');
         } else {
             const orderNum = `ORD-${Date.now().toString().slice(-6)}`;
             const { error } = await supabase.from('crm_orders').insert([{
-                ...payload,
+                ...dbPayload,
                 order_number: orderNum,
                 created_at: nowIso,
             }]);
-            if (error) { toast.error('Failed to create order'); setSaving(false); return; }
+            if (error) { 
+                console.error('Insert error:', error);
+                toast.error(`Failed to create order: ${error.message || 'Unknown error'}`); 
+                setSaving(false); 
+                return; 
+            }
             toast.success('Order created');
         }
         onSaved(); onClose();
@@ -253,8 +276,8 @@ const OrderModal = ({ order, onClose, onSaved, currentUser = 'Admin User' }:
 
 // ─── Detail Drawer ────────────────────────────────────────────────────────────
 const OrderDrawer = ({ order, onClose, onEdit }: { order: OrderRecord; onClose(): void; onEdit(): void }) => {
-    const statusSteps = (Object.keys(STATUS_CONFIG) as OrderStatus[]).filter(k => k !== 'cancelled');
-    const currentStep = (STATUS_CONFIG[order.status] || STATUS_CONFIG.pending).step;
+    const statusSteps = (Object.keys(STATUS_CONFIG) as OrderStatus[]).filter(k => k !== 'Cancelled');
+    const currentStep = (STATUS_CONFIG[order.status] || STATUS_CONFIG.Pending).step;
 
     return (
         <div className="fixed inset-0 z-[1500]" onClick={onClose}>
@@ -289,7 +312,7 @@ const OrderDrawer = ({ order, onClose, onEdit }: { order: OrderRecord; onClose()
                     </div>
 
                     {/* Pipeline progress */}
-                    {order.status !== 'cancelled' && (
+                    {order.status !== 'Cancelled' && (
                         <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Order Progress</p>
                             <div className="relative">
@@ -428,7 +451,34 @@ const CRMOrders = () => {
     const fetchData = async () => {
         setLoading(true);
         const { data, error } = await supabase.from('crm_orders').select('*').order('created_at', { ascending: false });
-        setOrders(error ? [] : (data ?? []) as OrderRecord[]);
+        if (error) {
+            console.error('Fetch error:', error);
+            setOrders([]);
+        } else {
+            const mappedOrders = (data || []).map((o: any) => {
+                const item = o.items?.[0] || {};
+                return {
+                    id: o.id,
+                    created_at: o.created_at,
+                    updated_at: o.updated_at,
+                    order_number: o.order_number,
+                    amount: o.total_amount || 0,
+                    status: o.status,
+                    notes: o.notes || '',
+                    assigned_to: o.assigned_to || '',
+                    customer_name: item.customer_name || '',
+                    customer_email: item.customer_email || '',
+                    customer_phone: item.customer_phone || '',
+                    system_type: item.system_type || 'Custom',
+                    capacity_kw: item.capacity_kw || 0,
+                    priority: item.priority || 'medium',
+                    address: item.address || '',
+                    pipeline: item.pipeline || 'Standard Sales Pipeline',
+                    installation_date: item.installation_date || ''
+                } as OrderRecord;
+            });
+            setOrders(mappedOrders);
+        }
         setLoading(false);
     };
 
@@ -438,7 +488,7 @@ const CRMOrders = () => {
         const q = search.toLowerCase();
         if (q && !(String(o.customer_name || '').toLowerCase().includes(q)) && !(String(o.order_number || '').toLowerCase().includes(q)) && !(String(o.system_type || '').toLowerCase().includes(q))) return false;
         if (tab === 'my_orders' && o.assigned_to !== currentUser) return false;
-        if (tab === 'open' && (o.status === 'installed' || o.status === 'cancelled')) return false;
+        if (tab === 'open' && (o.status === 'Installed' || o.status === 'Cancelled')) return false;
         if (filterStatus !== 'all' && o.status !== filterStatus) return false;
         if (filterPriority !== 'all' && o.priority !== filterPriority) return false;
         if (filterAssigned !== 'all' && o.assigned_to !== filterAssigned) return false;
@@ -461,7 +511,7 @@ const CRMOrders = () => {
     const tabCount = (id: TabId) => {
         if (id === 'all') return orders.length;
         if (id === 'my_orders') return orders.filter(o => o.assigned_to === currentUser).length;
-        if (id === 'open') return orders.filter(o => o.status !== 'installed' && o.status !== 'cancelled').length;
+        if (id === 'open') return orders.filter(o => o.status !== 'Installed' && o.status !== 'Cancelled').length;
         return 0;
     };
 
@@ -489,7 +539,7 @@ const CRMOrders = () => {
 
     // Revenue totals
     const totalRevenue = useMemo(() => filtered.reduce((s, o) => s + (o.amount || 0), 0), [filtered]);
-    const wonRevenue = useMemo(() => filtered.filter(o => o.status === 'installed').reduce((s, o) => s + (o.amount || 0), 0), [filtered]);
+    const wonRevenue = useMemo(() => filtered.filter(o => o.status === 'Installed').reduce((s, o) => s + (o.amount || 0), 0), [filtered]);
 
     return (
         <div className="flex flex-col h-full bg-[#F8FAFB] overflow-hidden">
